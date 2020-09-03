@@ -18,6 +18,7 @@ class Router
         $this->addRoute('GET', '/articles', 'ArticleController@articles');
         $this->addRoute('POST', '/article/post', 'ArticleController@post');
         $this->addRoute('POST', '/article/remove', 'ArticleController@remove');
+        $this->addRoute('POST', '/article/update', 'ArticleController@update');
         $this->addRoute('GET', '/article/:id', 'ArticleController@show');
 
         $this->addRoute('POST', '/auth/login', 'AuthController@login');
@@ -54,7 +55,7 @@ class Router
             exit;
         }
 
-        //check optional routes]
+        //check optional routes
         foreach($this->optionalRoutes as $key => $val)
         {
             if($_SERVER["REQUEST_METHOD"] !== $this->routeMethods[$key])

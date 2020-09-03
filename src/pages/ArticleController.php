@@ -42,6 +42,59 @@ class ArticleController
         $db->close();
     }
 
+    public function update()
+    {
+        if(!Auth::check())   
+            return;
+        
+        $raw_json = file_get_contents("php://input");
+        $json = json_decode($raw_json, true);
+        if(!isset($json['id']) || !isset($json['title']) || !isset($json['body']))
+            return;
+        
+        $id = intval($json['id']);
+        $db = DB::begin();
+        $db->do('UPDATE article SET title = ?, body = ?, visible = ?, updated_at = ?) where id = ?;', $json['title'], $json['body'], $json['visible'], $json['updated_at'], $id);
+
+        $tags = $db->get('select article_tags.id as id, tag.id as tag_id, tag.name as tag_name  from article_tags inner join tag on tag.id = article_tags.tag_id where article_tags.article_id = ?', $id);
+
+        if(isset($json['tags']))
+        {
+            $exists = [];
+            foreach($tags as $key )
+            {
+                if(!in_array($key['tag_name'], $json['tags'], true))
+                {
+                    $db->do('delete from article_tags where id = ?', $key['id']);
+                }
+                else
+                {
+                    $exists[] = $key['tag_name'];
+                }
+            }
+            $tags = [];
+            foreach($json['tags'] as $tag)
+            {
+                if(strpos($tag, ' ') === false && !in_array($tag, $exists, true))
+                {
+                    $db->do('INSERT INTO tags(name) values(?);', $tag);
+                    $tags[] = $tag;
+                    $tag_count++;
+                }
+            }
+
+            $arg = str_repeat(',?', $tag_count);
+            $arg = substr($arg, 1);
+            $tag_map = $db->get('select id from tag where name in (' . $arg . ');', ...$tags);
+            foreach($tag_map as $value)
+            {
+                $db->do('insert into article_tags(article_id, tag_id) values(?, ?);', $id, intval($value['id']));
+            }
+
+        }
+        $db->close();
+    }
+
     public function post()
     {
         if(!Auth::check())   
@@ -96,7 +149,7 @@ class ArticleController
 
     public function show($ary)
     {
-        if(!isset($ary['id']) || $ary['id'] === 'post' || $ary['id'] === 'remove')
+        if(!isset($ary['id']) || $ary['id'] === 'post' || $ary['id'] === 'remove' || $ary['id'] === 'update')
             return;
         
         $id = intval($ary['id']);
